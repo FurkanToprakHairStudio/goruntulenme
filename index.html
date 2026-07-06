@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Canlı Aktif Kullanıcılar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --bg:#0b0f1a; --card:rgba(22,27,42,.72); --border:rgba(255,255,255,.08);
+  --text:#f1f5f9; --muted:#94a3b8; --green:#22c55e; --red:#f87171;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  min-height:100vh;display:grid;place-items:center;padding:24px;
+  font-family:"Inter",system-ui,sans-serif;color:var(--text);
+  background:var(--bg);overflow:hidden;
+}
+.bg-glow{
+  position:fixed;inset:-30%;
+  background:
+    radial-gradient(40% 40% at 20% 30%,rgba(99,102,241,.35),transparent 70%),
+    radial-gradient(40% 40% at 80% 70%,rgba(34,211,238,.28),transparent 70%);
+  filter:blur(20px);animation:drift 16s ease-in-out infinite alternate;z-index:0;
+}
+@keyframes drift{from{transform:translate(-4%,-2%) scale(1)}to{transform:translate(4%,3%) scale(1.1)}}
+.card{
+  position:relative;z-index:1;width:min(440px,100%);padding:40px 36px;text-align:center;
+  background:var(--card);border:1px solid var(--border);border-radius:24px;
+  backdrop-filter:blur(20px);box-shadow:0 30px 80px rgba(0,0,0,.45);
+}
+.card__head{
+  display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;
+  background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);margin-bottom:28px;transition:all .3s;
+}
+.card__head.offline{background:rgba(248,113,113,.12);border-color:rgba(248,113,113,.3)}
+.card__head.offline .live-label{color:var(--red)}
+.card__head.offline .pulse-dot{background:var(--red);animation:none}
+.live-label{font-size:12px;font-weight:700;letter-spacing:1.5px;color:var(--green)}
+.pulse-dot{width:9px;height:9px;border-radius:50%;background:var(--green);animation:pulse 1.8s infinite}
+@keyframes pulse{
+  0%{box-shadow:0 0 0 0 rgba(34,197,94,.6)}
+  70%{box-shadow:0 0 0 12px rgba(34,197,94,0)}
+  100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}
+}
+.subtitle{color:var(--muted);font-size:15px;margin-bottom:6px}
+.counter{
+  font-size:76px;font-weight:800;line-height:1;letter-spacing:-2px;
+  background:linear-gradient(120deg,#fff,#a5b4fc,#67e8f9);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  transition:transform .25s ease;
+}
+.counter.bump{transform:scale(1.08)}
+.counter-label{color:var(--muted);font-size:16px;margin-top:4px;margin-bottom:32px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:28px}
+.stat{padding:14px 8px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:14px}
+.stat__value{display:block;font-size:20px;font-weight:700}
+.stat__label{display:block;margin-top:4px;font-size:11px;color:var(--muted)}
+.sparkline{margin-bottom:20px}
+.sparkline svg{width:100%;height:60px}
+.card__foot{font-size:12px;color:var(--muted)}
+.setup{
+  position:fixed;inset:0;z-index:5;display:grid;place-items:center;
+  background:rgba(8,11,20,.85);backdrop-filter:blur(6px);padding:24px;
+}
+.setup__box{
+  max-width:440px;text-align:center;padding:32px;border-radius:20px;
+  background:var(--card);border:1px solid var(--border);
+}
+.setup__box h2{margin-bottom:12px;font-size:22px}
+.setup__box p{color:var(--muted);line-height:1.7}
+.setup__box code{background:rgba(255,255,255,.08);padding:2px 6px;border-radius:6px;font-size:13px;color:#a5b4fc}
+@media (max-width:420px){.counter{font-size:60px}.card{padding:32px 22px}}
+</style>
+</head>
+<body>
+<div class="bg-glow"></div>
+
+<main class="card">
+  <header class="card__head" id="status">
+    <span class="pulse-dot"></span>
+    <span class="live-label">CANLI</span>
+  </header>
+
+  <p class="subtitle">Şu anda sitede</p>
+  <div class="counter" id="counter" aria-live="polite">–</div>
+  <p class="counter-label">kişi çevrimiçi</p>
+
+  <div class="stats">
+    <div class="stat"><span class="stat__value" id="peak">0</span><span class="stat__label">Bu oturum zirvesi</span></div>
+    <div class="stat"><span class="stat__value" id="avg">0</span><span class="stat__label">Ortalama</span></div>
+    <div class="stat"><span class="stat__value" id="conn">–</span><span class="stat__label">Bağlantı</span></div>
+  </div>
+
+  <div class="sparkline">
+    <svg id="chart" viewBox="0 0 300 60" preserveAspectRatio="none">
+      <polyline id="line" fill="none" stroke="url(#grad)" stroke-width="2.5" points="" />
+      <defs><linearGradient id="grad" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#6366f1" /><stop offset="100%" stop-color="#22d3ee" />
+      </linearGradient></defs>
+    </svg>
+  </div>
+
+  <footer class="card__foot"><span id="updated">Bağlanıyor…</span></footer>
+</main>
+
+<div class="setup" id="setup" hidden>
+  <div class="setup__box">
+    <h2>⚙️ Son bir adım kaldı</h2>
+    <p>Aşağıdaki JavaScript bölümünde <code>SUPABASE_URL</code> ve <code>SUPABASE_ANON_KEY</code> alanlarını doldurman gerekiyor. Nasıl yapılacağı kodun içinde yazıyor.</p>
+  </div>
+</div>
+
+<script type="module">
+// ============================================================
+//  ⬇️  SADECE ŞU 2 SATIRI DOLDUR (1 defa, kod bilmene gerek yok)
+//
+//  1) https://supabase.com → ücretsiz hesap aç → "New project"
+//  2) Sol menü: Project Settings → API
+//  3) "Project URL" ve "anon public" anahtarını buraya yapıştır.
+//  (anon public anahtar zaten herkese açık olacak şekilde tasarlıdır.)
+// ============================================================
+const SUPABASE_URL      = "https://jzkvlcxsefdvbqigcxyk.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_CA96S5ZABgdh1n8nZJ0tJA_pcU59RFB";
+// ============================================================
+
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const $ = (id) => document.getElementById(id);
+const counterEl=$("counter"), peakEl=$("peak"), avgEl=$("avg"),
+      connEl=$("conn"), updatedEl=$("updated"), lineEl=$("line"), statusEl=$("status");
+
+const configured = SUPABASE_URL && !SUPABASE_URL.includes("BURAYA")
+                && SUPABASE_ANON_KEY && !SUPABASE_ANON_KEY.includes("BURAYA");
+
+if (!configured) { $("setup").hidden = false; }
+else { start(); }
+
+let history=[], peak=0, last=null;
+
+function drawChart(){
+  if(history.length<2) return;
+  const min=Math.min(...history), max=Math.max(...history), range=(max-min)||1;
+  const w=300,h=60,pad=4;
+  const pts=history.map((v,i)=>{
+    const x=(i/(history.length-1))*w;
+    const y=h-pad-((v-min)/range)*(h-pad*2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  lineEl.setAttribute("points",pts.join(" "));
+}
+
+function render(count){
+  if(count!==last){
+    counterEl.classList.add("bump");
+    setTimeout(()=>counterEl.classList.remove("bump"),250);
+    last=count;
+  }
+  counterEl.textContent=count.toLocaleString("tr-TR");
+  if(count>peak) peak=count;
+  peakEl.textContent=peak.toLocaleString("tr-TR");
+  history.push(count);
+  if(history.length>40) history.shift();
+  const avg=history.reduce((a,b)=>a+b,0)/history.length;
+  avgEl.textContent=avg.toFixed(1).replace(".",",");
+  drawChart();
+  const t=new Date();
+  updatedEl.textContent="Son güncelleme: "+t.toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+}
+
+function setConn(ok){
+  connEl.textContent=ok?"Canlı":"Kesildi";
+  connEl.style.color=ok?"var(--green)":"var(--red)";
+  statusEl.classList.toggle("offline",!ok);
+  statusEl.querySelector(".live-label").textContent=ok?"CANLI":"BAĞLANTI YOK";
+  if(!ok) updatedEl.textContent="Bağlantı koptu, yeniden deneniyor…";
+}
+
+function start(){
+  const supabase=createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+  const myId=crypto.randomUUID();
+  const channel=supabase.channel("aktif-kullanicilar",{config:{presence:{key:myId}}});
+
+  channel.on("presence",{event:"sync"},()=>{
+    render(Object.keys(channel.presenceState()).length);
+  });
+
+  channel.subscribe(async (status)=>{
+    if(status==="SUBSCRIBED"){
+      setConn(true);
+      await channel.track({at:Date.now()});
+    } else if(["CHANNEL_ERROR","TIMED_OUT","CLOSED"].includes(status)){
+      setConn(false);
+    }
+  });
+}
+</script>
+</body>
+</html>
